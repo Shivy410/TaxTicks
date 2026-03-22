@@ -128,7 +128,7 @@ export default async function Terms() {
           or the suitability of our services for accounting, tax filing, or compliance purposes.
         </li>
         <li className="bg-yellow-50 p-3 border-l-4 border-yellow-400">
-          <strong className="text-slate-800">⚠️ Important:</strong> TaxTicks is{" "}
+          <strong className="text-slate-800">Important:</strong> TaxTicks is{" "}
           <strong className="text-slate-800">not a substitute</strong> for professional tax or legal advice. You use the
           service <strong className="text-slate-800">at your own risk</strong>.
         </li>

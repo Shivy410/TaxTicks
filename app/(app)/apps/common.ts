@@ -4,7 +4,7 @@ import path from "path"
 export type AppManifest = {
   name: string
   description: string
-  icon: string
+  icon: string // Lucide icon name e.g. "FileText", "Banknote", "Building2"
 }
 
 export async function getApps(): Promise<{ id: string; manifest: AppManifest }[]> {

@@ -28,7 +28,7 @@ export default async function PayrollApp() {
 
       {missingFields.length > 0 && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-          <p className="font-semibold mb-1">⚠ Complete your profile for accurate payslips</p>
+          <p className="font-semibold mb-1">Complete your profile for accurate payslips</p>
           <p>
             The following fields are missing from your settings:{" "}
             <strong>{missingFields.join(", ")}</strong>.{" "}

@@ -9,6 +9,11 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-manrope)", "var(--font-inter)", "Manrope", "Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+        manrope: ["var(--font-manrope)", "Manrope", "sans-serif"],
+        inter: ["var(--font-inter)", "Inter", "sans-serif"],
+      },
       colors: {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -60,11 +65,26 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // TaxTicks brand colours for direct use
+        teal: {
+          DEFAULT: "#0f7b6c",
+          strong: "#0a5e53",
+          light: "#e6f4f2",
+        },
+        amber: {
+          warning: "#b45309",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
+      },
+      letterSpacing: {
+        tight: "-0.02em",
+        tighter: "-0.03em",
       },
     },
   },

@@ -64,7 +64,7 @@ export default function BackupSettingsPage() {
       <Card className="flex flex-col gap-2 mt-16 p-5 bg-red-100 max-w-xl">
         <h2 className="text-xl font-semibold">Restore from a backup</h2>
         <p className="text-sm text-muted-foreground">
-          ⚠️ This action is irreversible. Restoring from a backup will delete all existing data from your current
+          This action is irreversible. Restoring from a backup will delete all existing data from your current
           database and remove all uploaded files. Be careful and make a backup first!
         </p>
         <form action={restoreBackup}>

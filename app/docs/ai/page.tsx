@@ -105,7 +105,7 @@ export default async function AI() {
         <strong>no guarantees of accuracy</strong>, completeness, or suitability for tax, legal, or financial purposes.
       </p>
       <p className="bg-red-50 p-4 rounded-lg border border-red-200 mb-6">
-        <strong className="text-red-600">⚠️ Important:</strong> TaxTicks is <strong>not a substitute</strong> for a
+        <strong className="text-red-600">Important:</strong> TaxTicks is <strong>not a substitute</strong> for a
         certified accountant, tax advisor, or legal counsel. Use at your own risk.
       </p>
     </div>

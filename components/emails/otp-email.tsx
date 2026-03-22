@@ -7,7 +7,7 @@ interface OTPEmailProps {
 
 export const OTPEmail: React.FC<OTPEmailProps> = ({ otp }) => (
   <EmailLayout preview="Your TaxTicks verification code">
-    <h2 style={{ textAlign: "center", color: "#4f46e5" }}>🔑 Your TaxTicks verification code</h2>
+    <h2 style={{ textAlign: "center", color: "#4f46e5" }}>Your TaxTicks Verification Code</h2>
     <div
       style={{
         margin: "20px 0",

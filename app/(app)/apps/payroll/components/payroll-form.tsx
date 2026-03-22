@@ -308,7 +308,7 @@ export function PayrollForm({ user, settings }: PayrollFormProps) {
 
           {/* ROS Reminder */}
           <div className="border border-yellow-300 bg-yellow-50 rounded-lg p-4">
-            <p className="font-semibold text-yellow-800 text-sm mb-1">⚠ Revenue Submission Required (PAYE Modernisation)</p>
+            <p className="font-semibold text-yellow-800 text-sm mb-1">Revenue Submission Required (PAYE Modernisation)</p>
             <p className="text-yellow-700 text-xs">
               You must submit this payroll run to Revenue via <strong>ROS</strong> on or before the pay date.
               Log in at <strong>ros.ie</strong> → Employer Services → Payroll Submissions.

@@ -134,7 +134,7 @@ export function RevolutDashboard({ settings }: RevolutDashboardProps) {
               </p>
             )}
             {isSandbox && (
-              <p className="text-xs text-yellow-700 mt-1">⚠ Sandbox mode — using test data</p>
+              <p className="text-xs text-yellow-700 mt-1">Sandbox mode — using test data</p>
             )}
           </div>
           <Button

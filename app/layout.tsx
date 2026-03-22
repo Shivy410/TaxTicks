@@ -1,6 +1,19 @@
 import config from "@/lib/config"
 import type { Metadata, Viewport } from "next"
+import { Manrope, Inter } from "next/font/google"
 import "./globals.css"
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+})
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: {
@@ -35,7 +48,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#0f7b6c",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -44,8 +57,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-white antialiased">{children}</body>
+    <html lang="en" className={`${manrope.variable} ${inter.variable}`}>
+      <body className="min-h-screen antialiased font-sans">{children}</body>
     </html>
   )
 }

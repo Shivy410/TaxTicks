@@ -311,7 +311,7 @@ export function PayslipPDF({ result }: { result: PayrollResult }) {
 
         {/* ROS Reminder */}
         <View style={styles.rosBox}>
-          <Text style={styles.rosTitle}>⚠ Revenue Submission Reminder (PAYE Modernisation)</Text>
+          <Text style={styles.rosTitle}>Revenue Submission Reminder (PAYE Modernisation)</Text>
           <Text style={styles.rosText}>
             Under Irish PAYE Modernisation, you must submit this payroll run to Revenue via ROS on or before the pay date.
             Log in to ros.ie, navigate to Employer Services → Payroll Submissions, and enter the figures above.

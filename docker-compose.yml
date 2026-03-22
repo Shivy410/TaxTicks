@@ -1,18 +1,33 @@
 services:
   app:
-    image: ghcr.io/vas3k/taxticks:latest
+    build: .
     ports:
       - "7331:7331"
     environment:
       - NODE_ENV=production
       - SELF_HOSTED_MODE=true
+      - DISABLE_SIGNUP=true
       - UPLOAD_PATH=/app/data/uploads
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/taxticks
+      # Auth — change this to any long random string before deploying
+      - BETTER_AUTH_SECRET=change-this-to-a-long-random-secret-key
+      # AI Providers — add at least one API key
+      - OPENAI_API_KEY=
+      - OPENAI_MODEL_NAME=gpt-4o-mini
+      - GOOGLE_API_KEY=
+      - GOOGLE_MODEL_NAME=gemini-2.5-flash
+      - MISTRAL_API_KEY=
+      - MISTRAL_MODEL_NAME=mistral-medium-latest
+      - LLM_PROVIDERS=openai,google,mistral
+      # Email (optional — leave blank to disable)
+      - RESEND_API_KEY=
+      - RESEND_FROM_EMAIL=TaxTicks <noreply@taxticks.com>
     volumes:
       - ./data:/app/data
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     logging:
       driver: "local"
       options:
@@ -28,6 +43,11 @@ services:
     volumes:
       - ./pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     logging:
       driver: "local"
       options:

@@ -6,7 +6,12 @@ import config from "@/lib/config"
 import Link from "next/link"
 
 export default function MobileMenu({ unsortedFilesCount }: { unsortedFilesCount: number }) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, setOpenMobile } = useSidebar()
+  const appHomeHref = "/dashboard"
+
+  const handleNavigationClick = () => {
+    setOpenMobile(false)
+  }
 
   return (
     <menu className="flex flex-row gap-2 p-2 items-center justify-between fixed top-0 left-0 w-full z-50 border-b-2 border-solid bg-background md:hidden">
@@ -14,12 +19,13 @@ export default function MobileMenu({ unsortedFilesCount }: { unsortedFilesCount:
         <AvatarImage src="/logo/256.png" />
         <AvatarFallback className="rounded-lg">AI</AvatarFallback>
       </Avatar>
-      <Link href="/" className="text-lg font-bold">
+      <Link href={appHomeHref} className="text-lg font-bold" onClick={handleNavigationClick}>
         {config.app.title}
       </Link>
       <Link
         href="/unsorted"
         className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
+        onClick={handleNavigationClick}
       >
         {unsortedFilesCount}
       </Link>

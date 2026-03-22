@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 288" role="img" aria-label="TaxTicks money bag icon">
+  <defs>
+    <linearGradient id="bag-fill" x1="128" x2="128" y1="22" y2="276" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#617660" />
+      <stop offset="1" stop-color="#4e624d" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M98 22h60c6 0 11 5 11 11l-4 28c28 13 49 38 58 72 9 34 5 69-9 93-16 28-43 45-72 50-9 2-18 2-27 0-29-5-56-22-72-50-14-24-18-59-9-93 9-34 30-59 58-72l-4-28c0-6 5-11 11-11Z"
+    fill="url(#bag-fill)"
+    stroke="#111711"
+    stroke-linejoin="round"
+    stroke-width="4"
+  />
+  <rect
+    x="75"
+    y="77"
+    width="106"
+    height="12"
+    rx="4"
+    fill="#faf6ea"
+    stroke="#111711"
+    stroke-width="2"
+  />
+  <rect
+    x="111"
+    y="10"
+    width="34"
+    height="45"
+    rx="7"
+    transform="rotate(8 128 32.5)"
+    fill="#faf6ea"
+    stroke="#111711"
+    stroke-width="2"
+  />
+  <rect
+    x="121"
+    y="15"
+    width="8"
+    height="28"
+    rx="4"
+    transform="rotate(8 125 29)"
+    fill="#617660"
+  />
+  <text
+    x="128"
+    y="191"
+    fill="#faf6ea"
+    font-family="DejaVu Serif, Georgia, serif"
+    font-size="124"
+    font-weight="700"
+    text-anchor="middle"
+  >
+    $
+  </text>
+</svg>

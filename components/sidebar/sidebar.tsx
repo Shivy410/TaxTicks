@@ -40,6 +40,11 @@ export function AppSidebar({
   const { open, setOpenMobile } = useSidebar()
   const pathname = usePathname()
   const { notification } = useNotification()
+  const appHomeHref = "/dashboard"
+
+  const handleNavigationClick = () => {
+    setOpenMobile(false)
+  }
 
   // Hide sidebar on mobile when clicking an item
   useEffect(() => {
@@ -50,7 +55,7 @@ export function AppSidebar({
     <>
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={appHomeHref} className="flex items-center gap-2" onClick={handleNavigationClick}>
             {open ? (
               <Image src="/logo/logo-wide.png" alt="TaxTicks" className="h-10 w-auto" width={160} height={53} />
             ) : (
@@ -70,7 +75,7 @@ export function AppSidebar({
               <SidebarMenu>
                 <SidebarMenuItemWithHighlight href="/dashboard">
                   <SidebarMenuButton asChild>
-                    <Link href="/dashboard">
+                    <Link href={appHomeHref} onClick={handleNavigationClick}>
                       <House />
                       <span>Home</span>
                     </Link>
@@ -79,7 +84,7 @@ export function AppSidebar({
 
                 <SidebarMenuItemWithHighlight href="/transactions">
                   <SidebarMenuButton asChild>
-                    <Link href="/transactions">
+                    <Link href="/transactions" onClick={handleNavigationClick}>
                       <FileText />
                       <span>Transactions</span>
                       {notification && notification.code === "sidebar.transactions" && notification.message && (
@@ -92,7 +97,7 @@ export function AppSidebar({
 
                 <SidebarMenuItemWithHighlight href="/unsorted">
                   <SidebarMenuButton asChild>
-                    <Link href="/unsorted">
+                    <Link href="/unsorted" onClick={handleNavigationClick}>
                       <ClockArrowUp />
                       <span>Unsorted</span>
                       {unsortedFilesCount > 0 && (
@@ -107,7 +112,7 @@ export function AppSidebar({
                 </SidebarMenuItemWithHighlight>
                 <SidebarMenuItemWithHighlight href="/apps">
                   <SidebarMenuButton asChild>
-                    <Link href="/apps">
+                    <Link href="/apps" onClick={handleNavigationClick}>
                       <LayoutDashboard />
                       <span>Apps</span>
                     </Link>
@@ -115,7 +120,7 @@ export function AppSidebar({
                 </SidebarMenuItemWithHighlight>
                 <SidebarMenuItemWithHighlight href="/settings">
                   <SidebarMenuButton asChild>
-                    <Link href="/settings">
+                    <Link href="/settings" onClick={handleNavigationClick}>
                       <Settings />
                       <span>Settings</span>
                     </Link>
@@ -132,7 +137,7 @@ export function AppSidebar({
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <Link href="/import/csv">
+                    <Link href="/import/csv" onClick={handleNavigationClick}>
                       <Import />
                       Import from CSV
                     </Link>

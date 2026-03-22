@@ -1,10 +1,11 @@
 import { getCurrentUser } from "@/lib/auth"
 import { getSettings } from "@/models/settings"
-import { getEmployees, getLatestPayslipForEmployee } from "@/models/employees"
+import { getEmployees, getLatestPayslipForEmployee, getPayslipsByEmployee } from "@/models/employees"
 import { PayrollForm } from "./components/payroll-form"
+import { PayslipHistory } from "./components/payslip-history"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Users, UserPlus, Briefcase, AlertTriangle, Briefcase as BriefcaseIcon } from "lucide-react"
+import { Users, UserPlus, Briefcase, AlertTriangle } from "lucide-react"
 
 interface PayrollPageProps {
   searchParams: Promise<{ employeeId?: string }>
@@ -23,6 +24,9 @@ export default async function PayrollApp({ searchParams }: PayrollPageProps) {
   const latestPayslip = selectedEmployee
     ? await getLatestPayslipForEmployee(selectedEmployee.id, user.id)
     : null
+  const payslips = selectedEmployee
+    ? await getPayslipsByEmployee(selectedEmployee.id, user.id)
+    : []
 
   const missingFields: string[] = []
   if (!user.businessName) missingFields.push("Business Name")
@@ -131,6 +135,16 @@ export default async function PayrollApp({ searchParams }: PayrollPageProps) {
             : null
         }
       />
+
+      {selectedEmployee && (
+        <div className="mt-8">
+          <PayslipHistory
+            employeeId={selectedEmployee.id}
+            payslips={payslips}
+            showRunPayrollButton={false}
+          />
+        </div>
+      )}
     </div>
   )
 }

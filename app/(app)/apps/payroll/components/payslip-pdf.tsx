@@ -183,19 +183,19 @@ export function PayslipPDF({ result }: { result: PayrollResult }) {
             <Text style={styles.infoBoxTitle}>Employee Details</Text>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Name</Text>
-              <Text style={styles.infoValue}>{result.directorName}</Text>
+              <Text style={styles.infoValue}>{result.employeeName}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>PPSN</Text>
-              <Text style={styles.infoValue}>{result.directorPpsn || "—"}</Text>
+              <Text style={styles.infoValue}>{result.employeePpsn || "—"}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Role</Text>
-              <Text style={styles.infoValue}>Director</Text>
+              <Text style={styles.infoValue}>{result.employeeRole}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>PRSI Class</Text>
-              <Text style={styles.infoValue}>Class S (Proprietary Director)</Text>
+              <Text style={styles.infoValue}>{result.prsiClass}</Text>
             </View>
           </View>
           <View style={styles.infoBox}>
@@ -244,35 +244,35 @@ export function PayslipPDF({ result }: { result: PayrollResult }) {
             <Text style={[styles.tableHeaderText, styles.col1]}>Description</Text>
             <Text style={[styles.tableHeaderText, styles.col2]}>Taxable Amount</Text>
             <Text style={[styles.tableHeaderText, styles.col3]}>Rate</Text>
-            <Text style={[styles.tableHeaderText, styles.col4]}>Deduction</Text>
+            <Text style={[styles.tableHeaderText, styles.col4]}>Amount</Text>
           </View>
 
           {/* PAYE rows */}
           {result.payeBreakdown.map((row, i) => (
             <View key={`paye-${i}`} style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}>
-              <Text style={styles.col1}>PAYE — {row.band}</Text>
-              <Text style={styles.col2}>{formatEuro(row.amount)}</Text>
-              <Text style={styles.col3}>{row.rate}%</Text>
-              <Text style={styles.col4}>{formatEuro(row.tax)}</Text>
+              <Text style={styles.col1}>PAYE — {row.description}</Text>
+              <Text style={styles.col2}>{row.taxableAmount === null ? "—" : formatEuro(row.taxableAmount)}</Text>
+              <Text style={styles.col3}>{row.rateLabel ?? "—"}</Text>
+              <Text style={[styles.col4, { color: row.amount < 0 ? "#166534" : C.deduction }]}>{formatEuro(row.amount)}</Text>
             </View>
           ))}
 
           {/* USC rows */}
           {result.uscBreakdown.map((row, i) => (
             <View key={`usc-${i}`} style={[styles.tableRow, (result.payeBreakdown.length + i) % 2 === 1 ? styles.tableRowAlt : {}]}>
-              <Text style={styles.col1}>USC — {row.band}</Text>
-              <Text style={styles.col2}>{formatEuro(row.amount)}</Text>
-              <Text style={styles.col3}>{row.rate.toFixed(1)}%</Text>
-              <Text style={styles.col4}>{formatEuro(row.tax)}</Text>
+              <Text style={styles.col1}>USC — {row.description}</Text>
+              <Text style={styles.col2}>{row.taxableAmount === null ? "—" : formatEuro(row.taxableAmount)}</Text>
+              <Text style={styles.col3}>{row.rateLabel ?? "—"}</Text>
+              <Text style={[styles.col4, { color: row.amount < 0 ? "#166534" : C.deduction }]}>{formatEuro(row.amount)}</Text>
             </View>
           ))}
 
           {/* PRSI row */}
           <View style={[styles.tableRow, (result.payeBreakdown.length + result.uscBreakdown.length) % 2 === 1 ? styles.tableRowAlt : {}]}>
-            <Text style={styles.col1}>PRSI — Class S (Proprietary Director)</Text>
+            <Text style={styles.col1}>{result.prsiDescription}</Text>
             <Text style={styles.col2}>{formatEuro(result.grossPay)}</Text>
-            <Text style={styles.col3}>{result.prsiRate}%</Text>
-            <Text style={styles.col4}>{formatEuro(result.prsi)}</Text>
+            <Text style={styles.col3}>{result.prsiRateLabel}</Text>
+            <Text style={[styles.col4, { color: result.prsi < 0 ? "#166534" : C.deduction }]}>{formatEuro(result.prsi)}</Text>
           </View>
 
           {/* Total deductions row */}
@@ -300,7 +300,7 @@ export function PayslipPDF({ result }: { result: PayrollResult }) {
             <Text style={styles.ytdValue}>{formatEuro(result.ytdUsc)}</Text>
           </View>
           <View style={styles.ytdRow}>
-            <Text style={styles.ytdLabel}>YTD PRSI (Class S)</Text>
+            <Text style={styles.ytdLabel}>YTD PRSI ({result.prsiClass})</Text>
             <Text style={styles.ytdValue}>{formatEuro(result.ytdPrsi)}</Text>
           </View>
           <View style={[styles.ytdRow, { borderBottomWidth: 0 }]}>
@@ -325,7 +325,7 @@ export function PayslipPDF({ result }: { result: PayrollResult }) {
             Generated by TaxTicks — Your Taxes, Simplified.
           </Text>
           <Text style={styles.footerText}>
-            Tax Year 2026 | 2026 Budget Rates Applied
+            Tax Year {result.taxYear} | {result.taxYear} rates applied
           </Text>
         </View>
 

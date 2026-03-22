@@ -28,6 +28,8 @@ export type PayslipData = {
   ytdPaye: number
   ytdUsc: number
   ytdPrsi: number
+  salaryTransactionId?: string | null
+  liabilityTransactionId?: string | null
   pdfPath?: string | null
 }
 
@@ -108,6 +110,14 @@ export const getLatestPayslipForEmployee = cache(
   }
 )
 
+export const getPayslipById = cache(
+  async (id: string, userId: string): Promise<PayslipRecord | null> => {
+    return await prisma.payslipRecord.findFirst({
+      where: { id, userId },
+    })
+  }
+)
+
 export const createPayslipRecord = async (userId: string, data: PayslipData): Promise<PayslipRecord> => {
   return await prisma.payslipRecord.create({
     data: {
@@ -124,6 +134,8 @@ export const createPayslipRecord = async (userId: string, data: PayslipData): Pr
       ytdPaye: data.ytdPaye,
       ytdUsc: data.ytdUsc,
       ytdPrsi: data.ytdPrsi,
+      salaryTransactionId: data.salaryTransactionId ?? null,
+      liabilityTransactionId: data.liabilityTransactionId ?? null,
       pdfPath: data.pdfPath ?? null,
     },
   })

@@ -5,7 +5,7 @@ import { SettingsMap } from "@/models/settings"
 import { Employee, User } from "@/prisma/client"
 import { AlertCircle, CheckCircle2, Download, FileText, Loader2, UserCircle2 } from "lucide-react"
 import { useState } from "react"
-import { PayrollResult, formatEuro } from "../calculator"
+import { PayrollResult, SUPPORTED_TAX_YEARS, formatEuro } from "../calculator"
 import { generatePayslipAction } from "../actions"
 import Link from "next/link"
 
@@ -29,8 +29,10 @@ const MONTHS = [
 ]
 
 export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: PayrollFormProps) {
-  const currentYear = new Date().getFullYear()
-  const currentMonth = MONTHS[new Date().getMonth()]
+  const currentYear = SUPPORTED_TAX_YEARS[SUPPORTED_TAX_YEARS.length - 1] ?? 2026
+  const currentMonth = MONTHS[new Date().getMonth()] ?? MONTHS[0]
+  const defaultPrsiClass = employee?.prsiClass ?? "S1"
+  const defaultIsDirector = employee?.isDirector ?? true
 
   const [grossSalary, setGrossSalary] = useState("")
   const [month, setMonth] = useState(currentMonth)
@@ -50,6 +52,11 @@ export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: Pa
   // Use employee-specific settings if available, otherwise fall back to global settings
   const taxCredits = employee?.annualTaxCredits ?? parseFloat(settings["payroll_tax_credits"] || "4000")
   const cutOff = employee?.standardRateCutOff ?? parseFloat(settings["payroll_standard_rate_cutoff"] || "44000")
+  const monthNumber = MONTHS.indexOf(month) + 1
+
+  function amountToneClass(amount: number): string {
+    return amount < 0 ? "text-emerald-700" : "text-red-600"
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -68,8 +75,12 @@ export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: Pa
       ytdUsc: parseFloat(ytdUsc || "0"),
       ytdPrsi: parseFloat(ytdPrsi || "0"),
       payPeriod: `${month} ${year}`,
-      directorName: employee?.fullName || user.name,
-      directorPpsn: employee?.ppsn || settings["company_ppsn"] || "",
+      payMonth: monthNumber,
+      payYear: parseInt(year, 10),
+      employeeName: employee?.fullName || user.name,
+      employeePpsn: employee?.ppsn || settings["company_ppsn"] || "",
+      prsiClass: defaultPrsiClass,
+      isDirector: defaultIsDirector,
       companyName: user.businessName || "My Company Ltd.",
       companyAddress: user.businessAddress || "",
       companyVatNumber: settings["company_vat_number"] || undefined,
@@ -135,14 +146,17 @@ export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: Pa
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Year</label>
-              <input
-                type="number"
+              <select
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                min="2024"
-                max="2030"
-              />
+              >
+                {SUPPORTED_TAX_YEARS.map((supportedYear) => (
+                  <option key={supportedYear} value={supportedYear}>
+                    {supportedYear}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -163,6 +177,7 @@ export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: Pa
           <div className="p-3 bg-muted/40 rounded-md text-xs text-muted-foreground space-y-1">
             <p><strong>Tax Credits:</strong> €{taxCredits.toLocaleString()} / year</p>
             <p><strong>Standard Rate Cut-Off:</strong> €{cutOff.toLocaleString()} / year</p>
+            <p><strong>Tax Tables:</strong> {currentYear} monthly cumulative PAYE/USC rates</p>
             {employee ? (
               <p>From employee profile. <Link href={`/apps/payroll/employees/${employee.id}`} className="underline">Edit employee</Link></p>
             ) : (
@@ -283,31 +298,31 @@ export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: Pa
                   <th className="text-left p-3 font-medium">Description</th>
                   <th className="text-right p-3 font-medium">Taxable Amount</th>
                   <th className="text-right p-3 font-medium">Rate</th>
-                  <th className="text-right p-3 font-medium">Deduction</th>
+                  <th className="text-right p-3 font-medium">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {result.payeBreakdown.map((row, i) => (
                   <tr key={`paye-${i}`} className="border-t">
-                    <td className="p-3">PAYE — {row.band}</td>
-                    <td className="p-3 text-right">{formatEuro(row.amount)}</td>
-                    <td className="p-3 text-right">{row.rate}%</td>
-                    <td className="p-3 text-right text-red-600">{formatEuro(row.tax)}</td>
+                    <td className="p-3">PAYE — {row.description}</td>
+                    <td className="p-3 text-right">{row.taxableAmount === null ? "—" : formatEuro(row.taxableAmount)}</td>
+                    <td className="p-3 text-right">{row.rateLabel ?? "—"}</td>
+                    <td className={`p-3 text-right ${amountToneClass(row.amount)}`}>{formatEuro(row.amount)}</td>
                   </tr>
                 ))}
                 {result.uscBreakdown.map((row, i) => (
                   <tr key={`usc-${i}`} className="border-t bg-muted/20">
-                    <td className="p-3">USC — {row.band}</td>
-                    <td className="p-3 text-right">{formatEuro(row.amount)}</td>
-                    <td className="p-3 text-right">{row.rate.toFixed(1)}%</td>
-                    <td className="p-3 text-right text-red-600">{formatEuro(row.tax)}</td>
+                    <td className="p-3">USC — {row.description}</td>
+                    <td className="p-3 text-right">{row.taxableAmount === null ? "—" : formatEuro(row.taxableAmount)}</td>
+                    <td className="p-3 text-right">{row.rateLabel ?? "—"}</td>
+                    <td className={`p-3 text-right ${amountToneClass(row.amount)}`}>{formatEuro(row.amount)}</td>
                   </tr>
                 ))}
                 <tr className="border-t">
-                  <td className="p-3">PRSI — Class S (Proprietary Director)</td>
+                  <td className="p-3">{result.prsiDescription}</td>
                   <td className="p-3 text-right">{formatEuro(result.grossPay)}</td>
-                  <td className="p-3 text-right">{result.prsiRate}%</td>
-                  <td className="p-3 text-right text-red-600">{formatEuro(result.prsi)}</td>
+                  <td className="p-3 text-right">{result.prsiRateLabel}</td>
+                  <td className={`p-3 text-right ${amountToneClass(result.prsi)}`}>{formatEuro(result.prsi)}</td>
                 </tr>
                 <tr className="border-t bg-red-50 font-semibold">
                   <td className="p-3">Total Deductions</td>

@@ -1,26 +1,62 @@
 /**
- * Irish Payroll Calculator — 2026 Budget Rates
+ * Irish Payroll Calculator
  *
- * Supports monthly payroll for a proprietary director (Class S PRSI).
- * Calculations are cumulative (year-to-date) to handle the standard rate
- * cut-off point and USC bands correctly across the tax year.
- *
- * References:
- *  - KPMG Budget 2026: https://kpmg.com/ie/en/insights/tax/budget-2026/tables.html
- *  - Revenue: https://www.revenue.ie/en/jobs-and-pensions/calculating-your-income-tax/index.aspx
+ * This calculator is intentionally explicit about the tax tables it supports.
+ * The feature currently uses 2026 monthly cumulative PAYE/USC rules and
+ * date-sensitive 2026 PRSI rates.
  */
 
+export const SUPPORTED_TAX_YEARS = [2026] as const
+
+type SupportedTaxYear = typeof SUPPORTED_TAX_YEARS[number]
+
+type AnnualBand = {
+  limit: number
+  rate: number
+  label: string
+}
+
+type CumulativeBand = {
+  lowerLimit: number
+  upperLimit: number
+  rate: number
+  label: string
+}
+
+export type PayrollBreakdownRow = {
+  description: string
+  taxableAmount: number | null
+  rateLabel: string | null
+  amount: number
+}
+
+type PrsiRateSchedule = {
+  effectiveFromMonth: number
+  classA: number
+  classS: number
+}
+
+type TaxProfile = {
+  uscBands: AnnualBand[]
+  uscExemptionThreshold: number
+  prsiRates: PrsiRateSchedule[]
+}
+
 export interface PayrollInput {
-  grossMonthlySalary: number       // Gross salary for this pay period (€)
-  annualTaxCredits: number         // Total annual income tax credits (€), default 4000
-  annualStandardRateCutOff: number // Annual standard rate cut-off point (€), default 44000
-  ytdGross: number                 // Year-to-date gross before this period (€)
-  ytdPaye: number                  // Year-to-date PAYE deducted before this period (€)
-  ytdUsc: number                   // Year-to-date USC deducted before this period (€)
-  ytdPrsi: number                  // Year-to-date PRSI deducted before this period (€)
-  payPeriod: string                // e.g. "January 2026"
-  directorName: string
-  directorPpsn: string
+  grossMonthlySalary: number
+  annualTaxCredits: number
+  annualStandardRateCutOff: number
+  ytdGross: number
+  ytdPaye: number
+  ytdUsc: number
+  ytdPrsi: number
+  payPeriod: string
+  payMonth: number
+  payYear: number
+  employeeName: string
+  employeePpsn: string
+  prsiClass: string
+  isDirector: boolean
   companyName: string
   companyAddress: string
   companyVatNumber?: string
@@ -28,16 +64,18 @@ export interface PayrollInput {
 }
 
 export interface PayrollResult {
-  // Inputs
   payPeriod: string
-  directorName: string
-  directorPpsn: string
+  payMonth: number
+  taxYear: SupportedTaxYear
+  employeeName: string
+  employeePpsn: string
+  employeeRole: string
+  prsiClass: string
   companyName: string
   companyAddress: string
   companyVatNumber?: string
   companyCroNumber?: string
 
-  // This period
   grossPay: number
   paye: number
   usc: number
@@ -45,12 +83,11 @@ export interface PayrollResult {
   totalDeductions: number
   netPay: number
 
-  // Breakdown details
-  payeBreakdown: { band: string; amount: number; rate: number; tax: number }[]
-  uscBreakdown: { band: string; amount: number; rate: number; tax: number }[]
-  prsiRate: number
+  payeBreakdown: PayrollBreakdownRow[]
+  uscBreakdown: PayrollBreakdownRow[]
+  prsiDescription: string
+  prsiRateLabel: string
 
-  // Year-to-date (including this period)
   ytdGross: number
   ytdPaye: number
   ytdUsc: number
@@ -58,185 +95,447 @@ export interface PayrollResult {
   ytdNet: number
 }
 
-// ─── 2026 Tax Rates ───────────────────────────────────────────────────────────
+const PAY_FREQUENCY_PER_YEAR = 12
 
-const INCOME_TAX_STANDARD_RATE = 0.20
-const INCOME_TAX_HIGHER_RATE = 0.40
+const INCOME_TAX_STANDARD_RATE = 0.2
+const INCOME_TAX_HIGHER_RATE = 0.4
 
-// USC bands 2026 (annual thresholds)
-const USC_BANDS_2026 = [
-  { limit: 12012,  rate: 0.005 },
-  { limit: 28700,  rate: 0.02  },
-  { limit: 70044,  rate: 0.03  },
-  { limit: Infinity, rate: 0.08 },
-]
+const PRSI_CLASS_A_WEEKLY_ZERO_THRESHOLD = 352
+const PRSI_CLASS_A_WEEKLY_CREDIT_UPPER_THRESHOLD = 424
+const PRSI_CLASS_A_WEEKLY_MAX_CREDIT = 12
 
-// Class S PRSI rate (proprietary directors, self-employed)
-// No employer PRSI for proprietary directors (>15% shareholding)
-const PRSI_CLASS_S_RATE = 0.042  // 4.2% from Oct 2025
-
-// ─── Calculator ───────────────────────────────────────────────────────────────
-
-function calcPaye(
-  ytdGrossBefore: number,
-  grossThisPeriod: number,
-  annualCutOff: number,
-  annualCredits: number
-): { paye: number; breakdown: { band: string; amount: number; rate: number; tax: number }[] } {
-  const ytdGrossAfter = ytdGrossBefore + grossThisPeriod
-
-  // Cumulative PAYE on total YTD gross
-  const standardBandUsed = Math.min(ytdGrossAfter, annualCutOff)
-  const higherBandUsed = Math.max(0, ytdGrossAfter - annualCutOff)
-
-  const cumulativeTaxBeforeCredits =
-    standardBandUsed * INCOME_TAX_STANDARD_RATE +
-    higherBandUsed * INCOME_TAX_HIGHER_RATE
-
-  // Apply annual credits proportionally (cumulative approach)
-  // We calculate the cumulative PAYE up to this month and subtract what was
-  // already deducted in prior periods.
-  const monthNumber = Math.round(ytdGrossAfter / grossThisPeriod)
-  const creditsToDate = annualCredits  // Revenue applies credits cumulatively
-
-  const cumulativePaye = Math.max(0, cumulativeTaxBeforeCredits - creditsToDate)
-
-  // Prior cumulative PAYE (before this period)
-  const priorStandardBand = Math.min(ytdGrossBefore, annualCutOff)
-  const priorHigherBand = Math.max(0, ytdGrossBefore - annualCutOff)
-  const priorTaxBeforeCredits =
-    priorStandardBand * INCOME_TAX_STANDARD_RATE +
-    priorHigherBand * INCOME_TAX_HIGHER_RATE
-  const priorCumulativePaye = Math.max(0, priorTaxBeforeCredits - creditsToDate)
-
-  const paye = Math.max(0, cumulativePaye - priorCumulativePaye)
-
-  // Breakdown for this period
-  const breakdown: { band: string; amount: number; rate: number; tax: number }[] = []
-  const standardInPeriod = Math.min(grossThisPeriod, Math.max(0, annualCutOff - ytdGrossBefore))
-  const higherInPeriod = Math.max(0, grossThisPeriod - standardInPeriod)
-
-  if (standardInPeriod > 0) {
-    breakdown.push({ band: "Standard Rate (20%)", amount: standardInPeriod, rate: 20, tax: standardInPeriod * INCOME_TAX_STANDARD_RATE })
-  }
-  if (higherInPeriod > 0) {
-    breakdown.push({ band: "Higher Rate (40%)", amount: higherInPeriod, rate: 40, tax: higherInPeriod * INCOME_TAX_HIGHER_RATE })
-  }
-
-  return { paye, breakdown }
+const TAX_PROFILES: Record<SupportedTaxYear, TaxProfile> = {
+  2026: {
+    uscExemptionThreshold: 13000,
+    uscBands: [
+      { limit: 12012, rate: 0.005, label: "USC Band 1" },
+      { limit: 28700, rate: 0.02, label: "USC Band 2" },
+      { limit: 70044, rate: 0.03, label: "USC Band 3" },
+      { limit: Infinity, rate: 0.08, label: "USC Band 4" },
+    ],
+    prsiRates: [
+      { effectiveFromMonth: 1, classA: 0.042, classS: 0.042 },
+      { effectiveFromMonth: 10, classA: 0.0435, classS: 0.0435 },
+    ],
+  },
 }
 
-function calcUsc(
-  ytdGrossBefore: number,
+function assertSupportedTaxYear(year: number): asserts year is SupportedTaxYear {
+  if (!SUPPORTED_TAX_YEARS.includes(year as SupportedTaxYear)) {
+    throw new Error(`Unsupported tax year ${year}. Payroll currently supports ${SUPPORTED_TAX_YEARS.join(", ")} only.`)
+  }
+}
+
+function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function nearlyZero(value: number): boolean {
+  return Math.abs(value) < 0.005
+}
+
+function annualToCumulativeMonthly(amount: number, monthNumber: number): number {
+  if (monthNumber <= 0) return 0
+  return (amount * monthNumber) / PAY_FREQUENCY_PER_YEAR
+}
+
+function formatPercent(rate: number): string {
+  const percentage = rate * 100
+  return `${percentage.toFixed(2).replace(/\.?0+$/, "")}%`
+}
+
+function getPrsiRate(profile: TaxProfile, payMonth: number, prsiClass: string): number {
+  const matchingRates = [...profile.prsiRates]
+    .sort((a, b) => a.effectiveFromMonth - b.effectiveFromMonth)
+    .filter((schedule) => payMonth >= schedule.effectiveFromMonth)
+  const selectedRate = matchingRates[matchingRates.length - 1]
+
+  if (!selectedRate) {
+    throw new Error(`No PRSI rate configured for month ${payMonth}.`)
+  }
+
+  return prsiClass.startsWith("A") ? selectedRate.classA : selectedRate.classS
+}
+
+function createCumulativeBands(annualBands: AnnualBand[], monthNumber: number): CumulativeBand[] {
+  let previousAnnualLimit = 0
+
+  return annualBands.map((band) => {
+    const lowerLimit = annualToCumulativeMonthly(previousAnnualLimit, monthNumber)
+    const upperLimit = band.limit === Infinity ? Infinity : annualToCumulativeMonthly(band.limit, monthNumber)
+
+    previousAnnualLimit = band.limit
+
+    return {
+      lowerLimit,
+      upperLimit,
+      rate: band.rate,
+      label: band.label,
+    }
+  })
+}
+
+function amountInBand(amount: number, band: CumulativeBand): number {
+  return Math.max(0, Math.min(amount, band.upperLimit) - band.lowerLimit)
+}
+
+function incomeTaxBeforeCredits(amount: number, cumulativeCutOff: number): number {
+  const standardBand = Math.min(amount, cumulativeCutOff)
+  const higherBand = Math.max(0, amount - cumulativeCutOff)
+
+  return (standardBand * INCOME_TAX_STANDARD_RATE) + (higherBand * INCOME_TAX_HIGHER_RATE)
+}
+
+function uscBeforeExemption(amount: number, bands: CumulativeBand[]): number {
+  return bands.reduce((sum, band) => sum + (amountInBand(amount, band) * band.rate), 0)
+}
+
+function finalizeBreakdown(rows: PayrollBreakdownRow[], total: number): PayrollBreakdownRow[] {
+  if (rows.length === 0) return []
+
+  const rounded = rows.map((row) => ({
+    ...row,
+    taxableAmount: row.taxableAmount === null ? null : round2(row.taxableAmount),
+    amount: round2(row.amount),
+  }))
+
+  const difference = round2(total - rounded.reduce((sum, row) => sum + row.amount, 0))
+  if (!nearlyZero(difference)) {
+    rounded[rounded.length - 1].amount = round2(rounded[rounded.length - 1].amount + difference)
+  }
+
+  return rounded
+}
+
+function calcPaye(input: {
   grossThisPeriod: number
-): { usc: number; breakdown: { band: string; amount: number; rate: number; tax: number }[] } {
-  // USC is exempt if total annual income < €13,000
-  // We calculate cumulative USC and subtract prior periods
+  annualCutOff: number
+  annualCredits: number
+  ytdGrossBefore: number
+  ytdPayeBefore: number
+  monthNumber: number
+}): { paye: number; breakdown: PayrollBreakdownRow[] } {
+  const {
+    grossThisPeriod,
+    annualCutOff,
+    annualCredits,
+    ytdGrossBefore,
+    ytdPayeBefore,
+    monthNumber,
+  } = input
+
   const ytdGrossAfter = ytdGrossBefore + grossThisPeriod
+  const cumulativeCutOff = annualToCumulativeMonthly(annualCutOff, monthNumber)
+  const priorCutOff = annualToCumulativeMonthly(annualCutOff, monthNumber - 1)
+  const cumulativeCredits = annualToCumulativeMonthly(annualCredits, monthNumber)
+  const priorCredits = annualToCumulativeMonthly(annualCredits, monthNumber - 1)
 
-  function uscOnAmount(amount: number): number {
-    let tax = 0
-    let remaining = amount
-    let prev = 0
-    for (const band of USC_BANDS_2026) {
-      const bandSize = band.limit === Infinity ? remaining : Math.min(remaining, band.limit - prev)
-      if (bandSize <= 0) break
-      tax += bandSize * band.rate
-      remaining -= bandSize
-      prev = band.limit
-      if (remaining <= 0) break
-    }
-    return tax
+  const cumulativeGrossTax = incomeTaxBeforeCredits(ytdGrossAfter, cumulativeCutOff)
+  const priorGrossTax = incomeTaxBeforeCredits(ytdGrossBefore, priorCutOff)
+
+  const cumulativePayeDue = Math.max(0, cumulativeGrossTax - cumulativeCredits)
+  const priorCumulativePayeDue = Math.max(0, priorGrossTax - priorCredits)
+  const paye = cumulativePayeDue - ytdPayeBefore
+
+  const standardTaxable = Math.max(
+    0,
+    Math.min(ytdGrossAfter, cumulativeCutOff) - Math.min(ytdGrossBefore, priorCutOff)
+  )
+  const higherTaxable = Math.max(0, grossThisPeriod - standardTaxable)
+  const periodCredits = cumulativeCredits - priorCredits
+  const cumulativeAdjustment = priorCumulativePayeDue - ytdPayeBefore
+
+  const breakdown: PayrollBreakdownRow[] = []
+
+  if (!nearlyZero(standardTaxable)) {
+    breakdown.push({
+      description: "Standard rate band",
+      taxableAmount: standardTaxable,
+      rateLabel: formatPercent(INCOME_TAX_STANDARD_RATE),
+      amount: standardTaxable * INCOME_TAX_STANDARD_RATE,
+    })
   }
 
-  const cumulativeUsc = uscOnAmount(ytdGrossAfter)
-  const priorUsc = uscOnAmount(ytdGrossBefore)
-  const usc = Math.max(0, cumulativeUsc - priorUsc)
-
-  // Breakdown for this period
-  const breakdown: { band: string; amount: number; rate: number; tax: number }[] = []
-  let remaining = grossThisPeriod
-  let prev = 0
-  let ytdOffset = ytdGrossBefore
-
-  for (const band of USC_BANDS_2026) {
-    const bandLimit = band.limit === Infinity ? Infinity : band.limit
-    const alreadyUsed = Math.min(ytdOffset, bandLimit === Infinity ? ytdOffset : bandLimit)
-    const availableInBand = bandLimit === Infinity ? remaining : Math.max(0, bandLimit - alreadyUsed)
-    const inBand = Math.min(remaining, availableInBand)
-
-    if (inBand > 0) {
-      const label = band.limit === Infinity
-        ? `USC Band 4 (8%) — above €70,044`
-        : `USC Band (${(band.rate * 100).toFixed(1)}%) — up to €${band.limit.toLocaleString()}`
-      breakdown.push({ band: label, amount: inBand, rate: band.rate * 100, tax: inBand * band.rate })
-      remaining -= inBand
-      ytdOffset = Math.max(0, ytdOffset - alreadyUsed)
-    }
-
-    if (remaining <= 0) break
-    prev = bandLimit === Infinity ? prev : bandLimit
+  if (!nearlyZero(higherTaxable)) {
+    breakdown.push({
+      description: "Higher rate band",
+      taxableAmount: higherTaxable,
+      rateLabel: formatPercent(INCOME_TAX_HIGHER_RATE),
+      amount: higherTaxable * INCOME_TAX_HIGHER_RATE,
+    })
   }
 
-  return { usc, breakdown }
+  if (!nearlyZero(periodCredits)) {
+    breakdown.push({
+      description: "Tax credits applied",
+      taxableAmount: null,
+      rateLabel: null,
+      amount: -periodCredits,
+    })
+  }
+
+  if (!nearlyZero(cumulativeAdjustment)) {
+    breakdown.push({
+      description: cumulativeAdjustment > 0
+        ? "Cumulative under-deduction adjustment"
+        : "Cumulative over-deduction refund",
+      taxableAmount: null,
+      rateLabel: null,
+      amount: cumulativeAdjustment,
+    })
+  }
+
+  return {
+    paye,
+    breakdown: finalizeBreakdown(breakdown, paye),
+  }
 }
 
-function calcPrsi(gross: number): number {
-  return gross * PRSI_CLASS_S_RATE
+function calcUsc(input: {
+  grossThisPeriod: number
+  ytdGrossBefore: number
+  ytdUscBefore: number
+  monthNumber: number
+  profile: TaxProfile
+}): { usc: number; breakdown: PayrollBreakdownRow[] } {
+  const {
+    grossThisPeriod,
+    ytdGrossBefore,
+    ytdUscBefore,
+    monthNumber,
+    profile,
+  } = input
+
+  const ytdGrossAfter = ytdGrossBefore + grossThisPeriod
+  const currentBands = createCumulativeBands(profile.uscBands, monthNumber)
+  const priorBands = createCumulativeBands(profile.uscBands, monthNumber - 1)
+
+  const grossUscAfter = uscBeforeExemption(ytdGrossAfter, currentBands)
+  const grossUscBefore = uscBeforeExemption(ytdGrossBefore, priorBands)
+
+  const cumulativeThreshold = annualToCumulativeMonthly(profile.uscExemptionThreshold, monthNumber)
+  const priorThreshold = annualToCumulativeMonthly(profile.uscExemptionThreshold, monthNumber - 1)
+
+  const afterExempt = ytdGrossAfter <= cumulativeThreshold
+  const beforeExempt = ytdGrossBefore <= priorThreshold
+
+  const cumulativeUscDue = afterExempt ? 0 : grossUscAfter
+  const priorCumulativeUscDue = beforeExempt ? 0 : grossUscBefore
+  const usc = cumulativeUscDue - ytdUscBefore
+
+  const breakdown: PayrollBreakdownRow[] = []
+
+  if (!afterExempt) {
+    for (let index = 0; index < currentBands.length; index += 1) {
+      const currentBand = currentBands[index]
+      const priorBand = priorBands[index]
+      const taxableAmount = amountInBand(ytdGrossAfter, currentBand) - amountInBand(ytdGrossBefore, priorBand)
+
+      if (!nearlyZero(taxableAmount)) {
+        breakdown.push({
+          description: currentBand.label,
+          taxableAmount,
+          rateLabel: formatPercent(currentBand.rate),
+          amount: taxableAmount * currentBand.rate,
+        })
+      }
+    }
+  }
+
+  if (beforeExempt && !afterExempt && !nearlyZero(grossUscBefore)) {
+    breakdown.push({
+      description: "Exemption threshold catch-up",
+      taxableAmount: null,
+      rateLabel: null,
+      amount: grossUscBefore,
+    })
+  }
+
+  const cumulativeAdjustment = priorCumulativeUscDue - ytdUscBefore
+  if (!nearlyZero(cumulativeAdjustment)) {
+    breakdown.push({
+      description: cumulativeAdjustment > 0
+        ? "Cumulative under-deduction adjustment"
+        : "Cumulative over-deduction refund",
+      taxableAmount: null,
+      rateLabel: null,
+      amount: cumulativeAdjustment,
+    })
+  }
+
+  return {
+    usc,
+    breakdown: finalizeBreakdown(breakdown, usc),
+  }
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+function calcPrsi(input: {
+  grossThisPeriod: number
+  payMonth: number
+  payYear: SupportedTaxYear
+  prsiClass: string
+  isDirector: boolean
+}): { prsi: number; description: string; rateLabel: string; prsiClass: string } {
+  const {
+    grossThisPeriod,
+    payMonth,
+    payYear,
+    prsiClass,
+    isDirector,
+  } = input
+
+  const profile = TAX_PROFILES[payYear]
+  const normalizedClass = prsiClass.trim().toUpperCase() || "S1"
+
+  if (normalizedClass.startsWith("A")) {
+    const employeeRate = getPrsiRate(profile, payMonth, normalizedClass)
+    const monthlyZeroThreshold = (PRSI_CLASS_A_WEEKLY_ZERO_THRESHOLD * 52) / 12
+    const monthlyCreditUpperThreshold = (PRSI_CLASS_A_WEEKLY_CREDIT_UPPER_THRESHOLD * 52) / 12
+    const monthlyMaxCredit = (PRSI_CLASS_A_WEEKLY_MAX_CREDIT * 52) / 12
+
+    if (grossThisPeriod <= monthlyZeroThreshold) {
+      return {
+        prsi: 0,
+        description: "PRSI — Class A",
+        rateLabel: "0%",
+        prsiClass: normalizedClass,
+      }
+    }
+
+    const basePrsi = grossThisPeriod * employeeRate
+    const prsiCredit = grossThisPeriod <= monthlyCreditUpperThreshold
+      ? Math.max(0, monthlyMaxCredit - ((grossThisPeriod - monthlyZeroThreshold) / 6))
+      : 0
+
+    return {
+      prsi: Math.max(0, basePrsi - prsiCredit),
+      description: "PRSI — Class A",
+      rateLabel: prsiCredit > 0
+        ? `${formatPercent(employeeRate)} less PRSI credit`
+        : formatPercent(employeeRate),
+      prsiClass: normalizedClass,
+    }
+  }
+
+  if (normalizedClass.startsWith("S")) {
+    const classSRate = getPrsiRate(profile, payMonth, normalizedClass)
+
+    return {
+      prsi: grossThisPeriod * classSRate,
+      description: isDirector
+        ? `PRSI — Class ${normalizedClass} (Proprietary Director)`
+        : `PRSI — Class ${normalizedClass}`,
+      rateLabel: formatPercent(classSRate),
+      prsiClass: normalizedClass,
+    }
+  }
+
+  throw new Error(`Unsupported PRSI class "${normalizedClass}".`)
+}
 
 export function calculatePayroll(input: PayrollInput): PayrollResult {
   const {
-    grossMonthlySalary: gross,
+    grossMonthlySalary,
     annualTaxCredits,
     annualStandardRateCutOff,
     ytdGross: ytdGrossBefore,
     ytdPaye: ytdPayeBefore,
     ytdUsc: ytdUscBefore,
     ytdPrsi: ytdPrsiBefore,
+    payMonth,
+    payYear,
   } = input
 
-  const { paye, breakdown: payeBreakdown } = calcPaye(
-    ytdGrossBefore,
-    gross,
+  const numericFields = {
+    grossMonthlySalary,
+    annualTaxCredits,
     annualStandardRateCutOff,
-    annualTaxCredits
-  )
+    ytdGrossBefore,
+    ytdPayeBefore,
+    ytdUscBefore,
+    ytdPrsiBefore,
+  }
 
-  const { usc, breakdown: uscBreakdown } = calcUsc(ytdGrossBefore, gross)
+  for (const [fieldName, value] of Object.entries(numericFields)) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`Invalid payroll input "${fieldName}".`)
+    }
+  }
 
-  const prsi = calcPrsi(gross)
+  if (payMonth < 1 || payMonth > 12) {
+    throw new Error(`Invalid pay month ${payMonth}.`)
+  }
 
-  const totalDeductions = paye + usc + prsi
-  const netPay = gross - totalDeductions
+  assertSupportedTaxYear(payYear)
+
+  const profile = TAX_PROFILES[payYear]
+
+  const { paye, breakdown: payeBreakdown } = calcPaye({
+    grossThisPeriod: grossMonthlySalary,
+    annualCutOff: annualStandardRateCutOff,
+    annualCredits: annualTaxCredits,
+    ytdGrossBefore,
+    ytdPayeBefore,
+    monthNumber: payMonth,
+  })
+
+  const { usc, breakdown: uscBreakdown } = calcUsc({
+    grossThisPeriod: grossMonthlySalary,
+    ytdGrossBefore,
+    ytdUscBefore,
+    monthNumber: payMonth,
+    profile,
+  })
+
+  const prsiResult = calcPrsi({
+    grossThisPeriod: grossMonthlySalary,
+    payMonth,
+    payYear,
+    prsiClass: input.prsiClass,
+    isDirector: input.isDirector,
+  })
+
+  const grossPay = round2(grossMonthlySalary)
+  const roundedPaye = round2(paye)
+  const roundedUsc = round2(usc)
+  const roundedPrsi = round2(prsiResult.prsi)
+  const totalDeductions = round2(roundedPaye + roundedUsc + roundedPrsi)
+  const netPay = round2(grossPay - totalDeductions)
+  const ytdGross = round2(ytdGrossBefore + grossMonthlySalary)
+  const ytdPaye = round2(ytdPayeBefore + roundedPaye)
+  const ytdUsc = round2(ytdUscBefore + roundedUsc)
+  const ytdPrsi = round2(ytdPrsiBefore + roundedPrsi)
 
   return {
     payPeriod: input.payPeriod,
-    directorName: input.directorName,
-    directorPpsn: input.directorPpsn,
+    payMonth,
+    taxYear: payYear,
+    employeeName: input.employeeName,
+    employeePpsn: input.employeePpsn,
+    employeeRole: input.isDirector ? "Director" : "Employee",
+    prsiClass: prsiResult.prsiClass,
     companyName: input.companyName,
     companyAddress: input.companyAddress,
     companyVatNumber: input.companyVatNumber,
     companyCroNumber: input.companyCroNumber,
 
-    grossPay: Math.round(gross * 100) / 100,
-    paye: Math.round(paye * 100) / 100,
-    usc: Math.round(usc * 100) / 100,
-    prsi: Math.round(prsi * 100) / 100,
-    totalDeductions: Math.round(totalDeductions * 100) / 100,
-    netPay: Math.round(netPay * 100) / 100,
+    grossPay,
+    paye: roundedPaye,
+    usc: roundedUsc,
+    prsi: roundedPrsi,
+    totalDeductions,
+    netPay,
 
     payeBreakdown,
     uscBreakdown,
-    prsiRate: PRSI_CLASS_S_RATE * 100,
+    prsiDescription: prsiResult.description,
+    prsiRateLabel: prsiResult.rateLabel,
 
-    ytdGross: Math.round((ytdGrossBefore + gross) * 100) / 100,
-    ytdPaye: Math.round((ytdPayeBefore + paye) * 100) / 100,
-    ytdUsc: Math.round((ytdUscBefore + usc) * 100) / 100,
-    ytdPrsi: Math.round((ytdPrsiBefore + prsi) * 100) / 100,
-    ytdNet: Math.round((ytdGrossBefore + gross - ytdPayeBefore - paye - ytdUscBefore - usc - ytdPrsiBefore - prsi) * 100) / 100,
+    ytdGross,
+    ytdPaye,
+    ytdUsc,
+    ytdPrsi,
+    ytdNet: round2(ytdGross - ytdPaye - ytdUsc - ytdPrsi),
   }
 }
 

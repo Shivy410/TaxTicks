@@ -14,7 +14,7 @@ interface EmployeeFormProps {
 const PRSI_CLASSES = [
   { value: "A1", label: "A1 — Employee (standard)" },
   { value: "S1", label: "S1 — Self-employed / Proprietary Director" },
-  { value: "S0", label: "S0 — Director (no PRSI)" },
+  { value: "S0", label: "S0 — Class S low-income subclass" },
 ]
 
 export function EmployeeForm({ employee }: EmployeeFormProps) {
@@ -109,7 +109,7 @@ export function EmployeeForm({ employee }: EmployeeFormProps) {
           ))}
         </select>
         <p className="text-xs text-muted-foreground">
-          Use S1 for proprietary directors (own &gt;15% of shares). Use A1 for regular employees.
+          Use A1 for regular employees. Use S1 for proprietary directors. S0 and S1 are both Class S and use the same 2026 rate here.
         </p>
       </div>
 

@@ -21,6 +21,36 @@ IMPORTANT RULES:
 
 export const DEFAULT_SETTINGS = [
   {
+    code: "company_vat_number",
+    name: "Company VAT Number",
+    description: "Your Irish company VAT registration number (e.g. IE1234567T). Required for VAT invoices.",
+    value: "",
+  },
+  {
+    code: "company_cro_number",
+    name: "CRO Number",
+    description: "Your Companies Registration Office number. Required for official documents.",
+    value: "",
+  },
+  {
+    code: "company_ppsn",
+    name: "Director PPSN",
+    description: "Your Personal Public Service Number. Used for payroll calculations.",
+    value: "",
+  },
+  {
+    code: "payroll_tax_credits",
+    name: "Annual Tax Credits (€)",
+    description: "Your total annual income tax credits for PAYE calculations. Default is €4,000 (single person employee + earned income credits).",
+    value: "4000",
+  },
+  {
+    code: "payroll_standard_rate_cutoff",
+    name: "Standard Rate Cut-Off Point (€)",
+    description: "Your annual standard rate cut-off point for the 20% income tax band. Default is €44,000 for a single person.",
+    value: "44000",
+  },
+  {
     code: "default_currency",
     name: "Default Currency",
     description: "Don't change this setting if you already have multi-currency transactions. I won't recalculate them.",
@@ -59,6 +89,40 @@ export const DEFAULT_SETTINGS = [
 ]
 
 export const DEFAULT_CATEGORIES = [
+  // ── Income ──────────────────────────────────────────────────────────────
+  {
+    code: "income_contracting",
+    name: "Income: Contracting",
+    color: "#1a7a4a",
+    llm_prompt: "client invoice, contracting income, professional services invoice, consulting fee",
+  },
+  {
+    code: "income_other",
+    name: "Income: Other",
+    color: "#2e9e5e",
+    llm_prompt: "other income, miscellaneous income, interest received",
+  },
+  // ── Payroll ──────────────────────────────────────────────────────────────
+  {
+    code: "payroll_salary",
+    name: "Payroll: Salary",
+    color: "#c44b8a",
+    llm_prompt: "director salary, employee salary, wages, payroll payment",
+  },
+  {
+    code: "payroll_prsi",
+    name: "Payroll: PRSI / Tax Liability",
+    color: "#a0306e",
+    llm_prompt: "PRSI payment, PAYE payment, USC payment, Revenue payroll tax, P30",
+  },
+  // ── Equity ───────────────────────────────────────────────────────────────
+  {
+    code: "dividends_paid",
+    name: "Equity: Dividends Paid",
+    color: "#7b2d8b",
+    llm_prompt: "dividend payment, dividend distribution, shareholder dividend",
+  },
+  // ── Allowable Business Expenses ──────────────────────────────────────────
   {
     code: "ads",
     name: "Advertisement",
@@ -98,10 +162,73 @@ export const DEFAULT_CATEGORIES = [
     llm_prompt: "transportation costs, fuel, car rental, vignettes, etc",
   },
   { code: "software", name: "Software", color: "#2b5a1d", llm_prompt: "software, licenses" },
+  // ── Irish-specific expense categories ──────────────────────────────────
+  {
+    code: "travel_subsistence",
+    name: "Expense: Travel & Subsistence",
+    color: "#fb9062",
+    llm_prompt: "business travel, flights, train, taxi, mileage, accommodation for work, subsistence, business trip",
+  },
+  {
+    code: "it_software",
+    name: "Expense: IT & Software",
+    color: "#2b5a1d",
+    llm_prompt: "software subscription, SaaS, cloud hosting, AWS, Vercel, GitHub, domain, IT equipment, laptop, monitor, keyboard",
+  },
+  {
+    code: "professional_fees",
+    name: "Expense: Professional Fees",
+    color: "#6a0d83",
+    llm_prompt: "accountant fee, solicitor fee, legal fee, CRO filing fee, company secretarial, audit fee, professional services",
+  },
+  {
+    code: "office_equipment",
+    name: "Expense: Office & Equipment",
+    color: "#59b0b9",
+    llm_prompt: "office supplies, stationery, printer, desk, chair, home office equipment",
+  },
+  {
+    code: "mobile_internet",
+    name: "Expense: Mobile & Internet",
+    color: "#0e7d86",
+    llm_prompt: "mobile phone bill, broadband, internet, phone plan, business mobile",
+  },
+  {
+    code: "insurance_business",
+    name: "Expense: Business Insurance",
+    color: "#050942",
+    llm_prompt: "professional indemnity insurance, public liability insurance, business insurance, employer liability",
+  },
+  {
+    code: "bank_fees",
+    name: "Expense: Bank & Finance Fees",
+    color: "#374151",
+    llm_prompt: "bank charge, Revolut fee, transaction fee, currency conversion fee, finance charge",
+  },
+  {
+    code: "training_development",
+    name: "Expense: Training & Development",
+    color: "#ee5d6c",
+    llm_prompt: "training course, professional development, conference, workshop, certification, online course, Udemy, Coursera",
+  },
   { code: "other", name: "Other", color: "#121216", llm_prompt: "other, miscellaneous," },
 ]
 
-export const DEFAULT_PROJECTS = [{ code: "personal", name: "Personal", llm_prompt: "personal", color: "#1e202b" }]
+export const DEFAULT_PROJECTS = [
+  {
+    code: "contracting",
+    name: "Contracting",
+    llm_prompt: "client work, contract, professional services, consulting engagement",
+    color: "#1a7a4a",
+  },
+  {
+    code: "internal",
+    name: "Internal Admin",
+    llm_prompt: "company admin, internal costs, running costs, company overhead",
+    color: "#374151",
+  },
+  { code: "personal", name: "Personal", llm_prompt: "personal", color: "#1e202b" },
+]
 
 export const DEFAULT_CURRENCIES = [
   { code: "USD", name: "$" },
@@ -416,11 +543,11 @@ export const DEFAULT_FIELDS = [
   },
   {
     code: "vat_rate",
-    name: "VAT Rate",
+    name: "VAT Rate (%)",
     type: "number",
-    llm_prompt: "VAT rate in percentage 0-100",
-    isVisibleInList: false,
-    isVisibleInAnalysis: false,
+    llm_prompt: "VAT rate percentage applied on this invoice (e.g. 23, 13.5, 9, 0). Leave blank if no VAT is shown.",
+    isVisibleInList: true,
+    isVisibleInAnalysis: true,
     isRequired: false,
     isExtra: true,
   },
@@ -428,9 +555,39 @@ export const DEFAULT_FIELDS = [
     code: "vat",
     name: "VAT Amount",
     type: "number",
-    llm_prompt: "total VAT in currency of the invoice",
+    llm_prompt: "total VAT amount charged in the currency of the invoice. Leave blank if no VAT is shown.",
+    isVisibleInList: true,
+    isVisibleInAnalysis: true,
+    isRequired: false,
+    isExtra: true,
+  },
+  {
+    code: "receipt_type",
+    name: "Receipt Type",
+    type: "string",
+    llm_prompt: "Classify this document as one of: 'VAT Invoice' (contains supplier VAT registration number), 'Simple Receipt' (no VAT number shown), or 'Credit Note'.",
     isVisibleInList: false,
-    isVisibleInAnalysis: false,
+    isVisibleInAnalysis: true,
+    isRequired: false,
+    isExtra: true,
+  },
+  {
+    code: "allowable_expense",
+    name: "Allowable Expense",
+    type: "string",
+    llm_prompt: "Is this a standard allowable business expense for an Irish limited company (e.g. software, travel, equipment, professional fees, office supplies)? Answer 'yes' or 'no'.",
+    isVisibleInList: false,
+    isVisibleInAnalysis: true,
+    isRequired: false,
+    isExtra: true,
+  },
+  {
+    code: "supplier_vat_no",
+    name: "Supplier VAT No.",
+    type: "string",
+    llm_prompt: "Extract the supplier's VAT registration number from the invoice. It typically appears as 'VAT No.', 'VAT Reg.', or 'IE' followed by digits. Leave blank if not shown.",
+    isVisibleInList: false,
+    isVisibleInAnalysis: true,
     isRequired: false,
     isExtra: true,
   },

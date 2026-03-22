@@ -15,6 +15,12 @@ export const settingsFormSchema = z.object({
   llm_providers: z.string().default('openai,google,mistral'),
   prompt_analyse_new_file: z.string().optional(),
   is_welcome_message_hidden: z.string().optional(),
+  // Irish company settings
+  company_vat_number: z.string().max(20).optional(),
+  company_cro_number: z.string().max(20).optional(),
+  company_ppsn: z.string().max(20).optional(),
+  payroll_tax_credits: z.string().optional(),
+  payroll_standard_rate_cutoff: z.string().optional(),
 })
 
 export const currencyFormSchema = z.object({

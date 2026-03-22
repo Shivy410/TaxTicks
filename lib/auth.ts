@@ -9,7 +9,7 @@ import { emailOTP } from "better-auth/plugins/email-otp"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { prisma } from "./db"
-import { resend, sendOTPCodeEmail } from "./email"
+import { getResendClient, isEmailConfigured, sendOTPCodeEmail } from "./email"
 
 export type UserProfile = {
   id: string
@@ -27,11 +27,15 @@ export const auth = betterAuth({
   appName: config.app.title,
   baseURL: config.app.baseURL,
   secret: config.auth.secret,
-  email: {
-    provider: "resend",
-    from: config.email.from,
-    resend,
-  },
+  ...(isEmailConfigured()
+    ? {
+        email: {
+          provider: "resend" as const,
+          from: config.email.from,
+          resend: getResendClient(),
+        },
+      }
+    : {}),
   session: {
     strategy: "jwt",
     expiresIn: 180 * 24 * 60 * 60, // 365 days

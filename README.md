@@ -91,7 +91,7 @@ Configure TaxTicks for your specific needs with these environment variables:
 | `BASE_URL` | No | Base URL for the application | `http://localhost:7331` |
 | `SELF_HOSTED_MODE` | No | Set to `true` for self-hosting: enables auto-login and custom API keys | `true` |
 | `DISABLE_SIGNUP` | No | Disable new user registration on your instance | `false` |
-| `BETTER_AUTH_SECRET` | Yes | Secret key for authentication (minimum 16 characters) | `your-secure-random-key` |
+| `BETTER_AUTH_SECRET` | Yes | Secret key for authentication (minimum 32 characters) | `your-secure-random-key-with-32-plus-chars` |
 
 You can also configure LLM provider settings in the application or via environment variables:
 

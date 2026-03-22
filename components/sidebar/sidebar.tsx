@@ -51,12 +51,11 @@ export function AppSidebar({
       <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo/256.png" alt="Logo" className="h-10 w-10 rounded-lg" width={40} height={40} />
-            <div className="grid flex-1 text-left leading-tight">
-              <span className="truncate font-semibold text-lg">
-                <ColoredText>{config.app.title}</ColoredText>
-              </span>
-            </div>
+            {open ? (
+              <Image src="/logo/logo-wide.png" alt="TaxTicks" className="h-10 w-auto" width={160} height={53} />
+            ) : (
+              <Image src="/logo/256.png" alt="TaxTicks" className="h-10 w-10 rounded-lg" width={40} height={40} />
+            )}
           </Link>
         </SidebarHeader>
         <SidebarContent>

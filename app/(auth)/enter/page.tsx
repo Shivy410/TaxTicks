@@ -12,9 +12,9 @@ export default async function LoginPage() {
 
   return (
     <Card className="w-full max-w-xl mx-auto p-8 flex flex-col items-center justify-center gap-4">
-      <Image src="/logo/512.png" alt="Logo" width={144} height={144} className="w-36 h-36" />
+      <Image src="/logo/logo-wide.png" alt="TaxTicks" width={280} height={93} className="w-64 h-auto" />
       <CardTitle className="text-3xl font-bold ">
-        <ColoredText>TaxHacker: Cloud Edition</ColoredText>
+        <ColoredText>TaxTicks: Cloud Edition</ColoredText>
       </CardTitle>
       <CardContent className="w-full">
         <LoginForm />

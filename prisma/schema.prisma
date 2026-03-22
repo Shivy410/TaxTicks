@@ -40,6 +40,8 @@ model User {
   sessions            Session[]
   appData             AppData[]
   progress            Progress[]
+  employees           Employee[]
+  payslips            PayslipRecord[]
 
   @@map("users")
 }
@@ -222,6 +224,53 @@ model AppData {
 
   @@unique([userId, app])
   @@map("app_data")
+}
+
+model Employee {
+  id                 String          @id @default(uuid()) @db.Uuid
+  userId             String          @map("user_id") @db.Uuid
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName           String          @map("full_name")
+  ppsn               String?
+  prsiClass          String          @default("S1") @map("prsi_class")
+  annualTaxCredits   Float           @default(4000) @map("annual_tax_credits")
+  standardRateCutOff Float           @default(44000) @map("standard_rate_cut_off")
+  startDate          DateTime?       @map("start_date")
+  isActive           Boolean         @default(true) @map("is_active")
+  isDirector         Boolean         @default(false) @map("is_director")
+  email              String?
+  address            String?
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  payslips           PayslipRecord[]
+
+  @@index([userId])
+  @@map("employees")
+}
+
+model PayslipRecord {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId      String   @map("employee_id") @db.Uuid
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payPeriod       String   @map("pay_period")
+  grossPay        Float    @map("gross_pay")
+  paye            Float
+  usc             Float
+  prsi            Float
+  totalDeductions Float    @map("total_deductions")
+  netPay          Float    @map("net_pay")
+  ytdGross        Float    @map("ytd_gross")
+  ytdPaye         Float    @map("ytd_paye")
+  ytdUsc          Float    @map("ytd_usc")
+  ytdPrsi         Float    @map("ytd_prsi")
+  pdfPath         String?  @map("pdf_path")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([employeeId])
+  @@map("payslip_records")
 }
 
 model Progress {

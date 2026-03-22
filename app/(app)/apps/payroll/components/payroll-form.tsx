@@ -1,17 +1,26 @@
 "use client"
 
-import { FormInput } from "@/components/forms/simple"
 import { Button } from "@/components/ui/button"
 import { SettingsMap } from "@/models/settings"
-import { User } from "@/prisma/client"
-import { AlertCircle, CheckCircle2, Download, FileText, Loader2 } from "lucide-react"
+import { Employee, User } from "@/prisma/client"
+import { AlertCircle, CheckCircle2, Download, FileText, Loader2, UserCircle2 } from "lucide-react"
 import { useState } from "react"
 import { PayrollResult, formatEuro } from "../calculator"
 import { generatePayslipAction } from "../actions"
+import Link from "next/link"
+
+interface YtdFigures {
+  ytdGross: number
+  ytdPaye: number
+  ytdUsc: number
+  ytdPrsi: number
+}
 
 interface PayrollFormProps {
   user: User
   settings: SettingsMap
+  employee?: Employee | null
+  ytdFromLastPayslip?: YtdFigures | null
 }
 
 const MONTHS = [
@@ -19,17 +28,17 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ]
 
-export function PayrollForm({ user, settings }: PayrollFormProps) {
+export function PayrollForm({ user, settings, employee, ytdFromLastPayslip }: PayrollFormProps) {
   const currentYear = new Date().getFullYear()
   const currentMonth = MONTHS[new Date().getMonth()]
 
   const [grossSalary, setGrossSalary] = useState("")
   const [month, setMonth] = useState(currentMonth)
   const [year, setYear] = useState(String(currentYear))
-  const [ytdGross, setYtdGross] = useState("0")
-  const [ytdPaye, setYtdPaye] = useState("0")
-  const [ytdUsc, setYtdUsc] = useState("0")
-  const [ytdPrsi, setYtdPrsi] = useState("0")
+  const [ytdGross, setYtdGross] = useState(String(ytdFromLastPayslip?.ytdGross ?? 0))
+  const [ytdPaye, setYtdPaye] = useState(String(ytdFromLastPayslip?.ytdPaye ?? 0))
+  const [ytdUsc, setYtdUsc] = useState(String(ytdFromLastPayslip?.ytdUsc ?? 0))
+  const [ytdPrsi, setYtdPrsi] = useState(String(ytdFromLastPayslip?.ytdPrsi ?? 0))
   const [saveTransaction, setSaveTransaction] = useState(true)
 
   const [result, setResult] = useState<PayrollResult | null>(null)
@@ -38,8 +47,9 @@ export function PayrollForm({ user, settings }: PayrollFormProps) {
   const [saved, setSaved] = useState(false)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
 
-  const taxCredits = parseFloat(settings["payroll_tax_credits"] || "4000")
-  const cutOff = parseFloat(settings["payroll_standard_rate_cutoff"] || "44000")
+  // Use employee-specific settings if available, otherwise fall back to global settings
+  const taxCredits = employee?.annualTaxCredits ?? parseFloat(settings["payroll_tax_credits"] || "4000")
+  const cutOff = employee?.standardRateCutOff ?? parseFloat(settings["payroll_standard_rate_cutoff"] || "44000")
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,12 +68,13 @@ export function PayrollForm({ user, settings }: PayrollFormProps) {
       ytdUsc: parseFloat(ytdUsc || "0"),
       ytdPrsi: parseFloat(ytdPrsi || "0"),
       payPeriod: `${month} ${year}`,
-      directorName: user.name,
-      directorPpsn: settings["company_ppsn"] || "",
+      directorName: employee?.fullName || user.name,
+      directorPpsn: employee?.ppsn || settings["company_ppsn"] || "",
       companyName: user.businessName || "My Company Ltd.",
       companyAddress: user.businessAddress || "",
       companyVatNumber: settings["company_vat_number"] || undefined,
       companyCroNumber: settings["company_cro_number"] || undefined,
+      employeeId: employee?.id,
       saveTransaction,
     })
 
@@ -87,6 +98,23 @@ export function PayrollForm({ user, settings }: PayrollFormProps) {
 
   return (
     <div className="space-y-8">
+      {/* Employee Info Banner */}
+      {employee && (
+        <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
+          <UserCircle2 className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1">
+            <span className="font-semibold">{employee.fullName}</span>
+            <span className="text-muted-foreground ml-2">
+              {employee.isDirector ? "Proprietary Director" : "Employee"} · PRSI Class {employee.prsiClass}
+              {employee.ppsn && ` · PPSN: ${employee.ppsn}`}
+            </span>
+          </div>
+          <Link href={`/apps/payroll/employees/${employee.id}`} className="text-primary text-xs hover:underline">
+            Edit
+          </Link>
+        </div>
+      )}
+
       {/* Input Form */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">
@@ -135,7 +163,11 @@ export function PayrollForm({ user, settings }: PayrollFormProps) {
           <div className="p-3 bg-muted/40 rounded-md text-xs text-muted-foreground space-y-1">
             <p><strong>Tax Credits:</strong> €{taxCredits.toLocaleString()} / year</p>
             <p><strong>Standard Rate Cut-Off:</strong> €{cutOff.toLocaleString()} / year</p>
-            <p className="text-xs">Change these in Settings → Business → Irish Company Details</p>
+            {employee ? (
+              <p>From employee profile. <Link href={`/apps/payroll/employees/${employee.id}`} className="underline">Edit employee</Link></p>
+            ) : (
+              <p>Change these in Settings → Business → Irish Company Details</p>
+            )}
           </div>
         </div>
 

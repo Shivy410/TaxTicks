@@ -2,6 +2,7 @@
 
 import { getCurrentUser } from "@/lib/auth"
 import { createTransaction } from "@/models/transactions"
+import { createPayslipRecord } from "@/models/employees"
 import { renderToBuffer } from "@react-pdf/renderer"
 import { createElement } from "react"
 import { PayrollInput, calculatePayroll } from "./calculator"
@@ -9,6 +10,7 @@ import { PayslipPDF } from "./components/payslip-pdf"
 
 export interface GeneratePayslipInput extends PayrollInput {
   saveTransaction: boolean
+  employeeId?: string
 }
 
 export interface GeneratePayslipResult {
@@ -74,6 +76,24 @@ export async function generatePayslipAction(
         issuedAt: issuedDate,
         note: `Due to Revenue by 23rd of following month. Submit via ROS.`,
       })
+
+      // Transaction 3: Save payslip record if employee is linked
+      if (input.employeeId) {
+        await createPayslipRecord(user.id, {
+          employeeId: input.employeeId,
+          payPeriod: input.payPeriod,
+          grossPay: result.grossPay,
+          paye: result.paye,
+          usc: result.usc,
+          prsi: result.prsi,
+          totalDeductions: result.totalDeductions,
+          netPay: result.netPay,
+          ytdGross: input.ytdGross,
+          ytdPaye: input.ytdPaye,
+          ytdUsc: input.ytdUsc,
+          ytdPrsi: input.ytdPrsi,
+        })
+      }
 
       saved = true
     }

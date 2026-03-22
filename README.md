@@ -1,6 +1,9 @@
 <div align="center"><a name="readme-top"></a>
 
-<img src="public/logo/logo-wide.png" alt="TaxTicks" width="280">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/logo/logo-wide-dark.png">
+  <img src="public/logo/logo-wide.png" alt="TaxTicks" width="280">
+</picture>
 
 <br>
 
